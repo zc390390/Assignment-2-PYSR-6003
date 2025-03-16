@@ -75,9 +75,10 @@ flexplot(panas.TOT ~ 1 , data = df)
 ##Examine for Assumptions, first we set up our model then use the visualize function to visualize what the residuals of our model look like.
 #This model gives us somewhat normally distributed residuals and variance that isnt constant. 
 ```{r}
-model <- lm(panas.TOT~sex + tipm.TOT + mps.TOT,
+model <- lm(panas.TOT~mps.TOT + tipm.TOT + sex,
 data=df)
 visualize(model, plot="residuals")
+visualize(model)
 ```
 ##Examine our model now by creating APA tables of descriptive statistics and a table for our model
 #Use summary model to examine our model firstly.
