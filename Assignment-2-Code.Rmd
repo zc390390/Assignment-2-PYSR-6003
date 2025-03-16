@@ -1,0 +1,114 @@
+---
+title: "Assignment 2 PSYR6003"
+output: html_document
+date: "2025-03-14"
+---
+
+#First we are setting up our librarys for our analysis then reading in our data from our repository using read_sav.
+```{r setup, include=FALSE}
+library(tidyr)
+library(dplyr)
+library(flexplot)
+library(haven)
+library(apaTables)
+library(psych)
+df <- read_sav('PSYR6003.A2.sav')
+```
+
+##Cleaning and Setting up Analysis
+#To set up the analysis we must convert sex from a string to binary. In addition one participant has "Other" as their sex, we have removed them from the analysis due to being the only participant and not being specified otherwise. 
+#We can then use dyplr to change strings of 'Male' to 1, and everything else becomes 0.
+```{R}
+df <- df %>% filter(sex != 'Other (specify)')
+df <- df %>%
+  mutate(sex = ifelse(sex == 'Male', 1, 0))
+#Use table to see that it worked
+table(df$sex)
+```
+
+#Reversing then taking mean of each subscale
+#We can use the case_when function to say which number should be converted into another number. This allows us to specifically reverse the order. 
+
+#Following this we can use the rowMeans for each variable we want to add up, I simply type every specificaly subscale together and put it into a new variable with .TOT in it.
+
+#After that we can use "select" and head to see if it worked.
+```{R}
+table(df$tipm.CONS2.3y)
+df <- df %>%
+  mutate(across(tipm.CONS2.3y, 
+                ~ case_when(
+                  . == 1 ~ 7,
+                  . == 2 ~ 6,
+                  . == 3 ~ 5,
+                  . == 5 ~ 3,
+                  . == 6 ~ 2,
+                  . == 7 ~ 1
+                )))
+
+#After this we can 
+df$tipm.TOT <- rowMeans(df[c("tipm.CONS1.3y", "tipm.CONS2.3y")], na.rm = TRUE)
+
+df$panas.TOT <- rowMeans(df[c("guilt1.3y", "guilt2.3y", "guilt3.3y", 
+                              "dep1.3y", "dep2.3y", "dep3.3y", 
+                              "fear1.3y", "fear2.3y", "fear3.3y", 
+                              "host1.3y", "host2.3y", "host3.3y")], na.rm = TRUE)
+
+df$mps.TOT <- rowMeans(df[c("mps.SPP1.3y", "mps.SPP2.3y", "mps.SPP3.3y", 
+                            "mps.SPP4.3y", "mps.SPP5.3y")], na.rm = TRUE)
+select <- df %>% 
+  select(c('tipm.TOT', 'panas.TOT', 'mps.TOT', 'sex'))
+head(view, 20)
+```
+
+##Utilizing flexplot we can look at the distribution of each of our variables.
+#Based on a visual look, none of the data looks very normally distributed or equally distributed in the case of male vs female.
+
+```{R}
+#Examine our data firstly
+#Predictors
+flexplot(sex ~ 1, data = df)
+flexplot(tipm.TOT ~ 1, data = df)
+flexplot(mps.TOT~  1, data = df)
+#Outcome
+flexplot(panas.TOT ~ 1 , data = df)
+```
+##Examine for Assumptions, first we set up our model then use the visualize function to visualize what the residuals of our model look like.
+#This model gives us somewhat normally distributed residuals and variance that isnt constant. 
+```{r}
+model <- lm(panas.TOT~sex + tipm.TOT + mps.TOT,
+data=df)
+visualize(model, plot="residuals")
+```
+##Examine our model now by creating APA tables of descriptive statistics and a table for our model
+#Use summary model to examine our model firstly.
+#Following this we can plug it into apa.reg.table in order to get an APA table to put into our paper. 
+#I have removed manually things from this output that were unnecessary for our results, in addition because it did not have the SE I manually added it into the table. 
+```{R}
+summary(model)
+apa.reg.table(model, filename = "Regression_Table.doc")
+```
+
+
+#To create a descriptive APA table, we can use the "select" dataframe from before, which only includes sex/tipm/panas/mps, and create a new dataframe that will get the mean and SD. 
+#apa.cor.table will then make a table with correlation between the two coefficients as well. 
+```{r}
+descriptives <- data.frame(
+  Variable = colnames(select),
+  Mean = sapply(select, mean, na.rm = TRUE),
+  SD = sapply(select, sd, na.rm = TRUE)
+)
+apa.cor.table(select, filename = "correlation_table.doc", table.number = 1)
+```
+
+##Finally model comparison
+#We recreate the full model from before
+#Then we create a reduced model that takes away the main variable of interest (mps.TOT)
+#Following that we can use the model.comparison function to compare our models in a variety of way, seeing that the full is better on all accounts.
+```{r}
+
+full <- lm(panas.TOT~sex + tipm.TOT + mps.TOT,
+data=df)
+reduced <- lm(panas.TOT~sex + tipm.TOT,
+data=df)
+model.comparison(reduced, full)
+```
